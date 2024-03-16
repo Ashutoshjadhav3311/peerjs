@@ -9,14 +9,11 @@ const App = () => {
   const [ownId, setOwnId] = useState('');
 
   useEffect(() => {
-    const newPeer = new Peer({
-      host: 'peerjs.com',
-      port: 443,
-      secure: true
-    });
+    const newPeer = new Peer();
 
     newPeer.on('open', id => {
       setOwnId(id);
+      console.log(ownId)
     });
 
     newPeer.on('connection', connection => {
