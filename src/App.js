@@ -2,38 +2,63 @@ import React, { useState, useEffect } from 'react';
 import Peer from 'peerjs';
 
 const App = () => {
-  const [peer, setPeer] = useState(null);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [friendId, setFriendId] = useState('');
   const [ownId, setOwnId] = useState('');
+  const [peer, setPeer] = useState(null);
+  const [connected, setConnected] = useState(false);
+
+  const connectToSignalingServer = () => {
+    const newPeer = new Peer({
+      host: 'signallingserver-t80i.onrender.com',
+      port: 10000,
+      secure: true
+    });
+
+    newPeer.on('open', () => {
+      console.log('Connected to signaling server');
+      setPeer(newPeer);
+      setConnected(true);
+    });
+
+    newPeer.on('error', (err) => {
+      console.error('Error connecting to signaling server:', err);
+      setPeer(null);
+      setConnected(false);
+    });
+  };
+
+  const disconnectFromSignalingServer = () => {
+    if (peer) {
+      peer.disconnect();
+      setPeer(null);
+      setConnected(false);
+      console.log('Disconnected from signaling server');
+    }
+  };
 
   useEffect(() => {
-    const newPeer = new Peer();
-
-    newPeer.on('open', id => {
-      setOwnId(id);
-      console.log(ownId)
-    });
-
-    newPeer.on('connection', connection => {
-      connection.on('data', data => {
-        if (data.type === 'image') {
-          // Handle image data received from peer
-          setMessages(prev => [...prev, { type: 'image', data: data.data }]);
-        } else {
-          // Handle other types of data
-          setMessages(prev => [...prev, { type: 'text', data }]);
-        }
+    if (peer) {
+      peer.on('connection', connection => {
+        connection.on('data', data => {
+          if (data.type === 'image') {
+            // Handle image data received from peer
+            setMessages(prev => [...prev, { type: 'image', data: data.data }]);
+          } else {
+            // Handle other types of data
+            setMessages(prev => [...prev, { type: 'text', data }]);
+          }
+        });
       });
-    });
-
-    setPeer(newPeer);
+    }
 
     return () => {
-      newPeer.disconnect();
+      if (peer) {
+        peer.off('connection'); // Remove the connection event listener when component unmounts
+      }
     };
-  }, []);
+  }, [peer]);
 
   useEffect(() => {
     if (friendId && peer) {
@@ -79,6 +104,13 @@ const App = () => {
     <div>
       <h1>Peer to Peer Image and Message Transfer</h1>
       <div>
+        {connected ? (
+          <button onClick={disconnectFromSignalingServer}>Disconnect from Signaling Server</button>
+        ) : (
+          <button onClick={connectToSignalingServer}>Connect to Signaling Server</button>
+        )}
+      </div>
+      <div>
         <h3>Your Connection ID:</h3>
         <p>{ownId}</p>
       </div>
@@ -102,7 +134,11 @@ const App = () => {
         <button onClick={selectImage}>Select Image</button>
       </div>
       <div>
-        <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+        />
         <button onClick={sendMessage}>Send Message</button>
       </div>
       <div>
